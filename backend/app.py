@@ -63,7 +63,7 @@ Be specific - reference ACTUAL things they said during the interview."""
 
 
 app = Flask(__name__)
-CORS(app, expose_headers=['X-Question-Number'])
+CORS(app, origins=["https://ai-interview-assistant-1-4gtf.onrender.com"], expose_headers=['X-Question-Number'])
 
 def stream_audio(text):
     BASE_URL = "https://global.api.murf.ai/v1/speech/stream"
