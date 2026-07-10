@@ -34,6 +34,8 @@ const feedbackText = document.getElementById("feedbackText");
 const improvementText = document.getElementById("improvementText");
 const newInterviewBtn = document.getElementById("newInterviewBtn");
 
+const API = import.meta.env.VITE_API_URL;
+
 // Subject Icons Map
 const iconMap = {
     "Self Introduction": "fas fa-user text-blue-400",
@@ -293,7 +295,7 @@ function stopRecording() {
 
 // ========== API FUNCTIONS ==========
 
-const startInterviewApiUrl = "http://127.0.0.1:5000/start-interview";
+const startInterviewApiUrl = `${API}/start-interview`;
 
 
 async function startInterview() {
@@ -328,7 +330,7 @@ async function startInterview() {
     }
 }
 
-const submitAnswerApiUrl = "http://127.0.0.1:5000/submit-answer";
+const submitAnswerApiUrl = `${API}/submit-answer`;
 
 
 async function submitAnswer() {
@@ -400,7 +402,7 @@ async function endInterview() {
     await getFeedback();
 }
 
-const getFeedbackApiUrl = "http://127.0.0.1:5000/get-feedback";
+const getFeedbackApiUrl = `${API}/get-feedback`;
 
 async function getFeedback() {
     showFeedbackSection();
