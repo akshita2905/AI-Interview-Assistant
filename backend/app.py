@@ -63,7 +63,7 @@ Be specific - reference ACTUAL things they said during the interview."""
 
 
 app = Flask(__name__)
-CORS(app, origins=["https://ai-interview-assistant-1-4gtf.onrender.com"], expose_headers=['X-Question-Number'])
+CORS(app, origins=["https://ai-interview-assistant-1-4gtf.onrender.com"], expose_headers=['X-Question-Number', "X-Interview-Complete"])
 
 def stream_audio(text):
     BASE_URL = "https://global.api.murf.ai/v1/speech/stream"
@@ -148,8 +148,22 @@ def submit_answer():
    
     agent.invoke({"messages": [{"role": "user", "content": answer}]}, config=config)
 
+    if question_count >= 5:
+    completion_text = (
+        "Thank you. That completes our interview. "
+        "You can now view your feedback."
+    )
 
+    return (
+        stream_audio(completion_text),
+        {
+            "Content-Type": "text/plain",
+            "X-Question-Number": "5",
+            "X-Interview-Complete": "true"
+        }
+    )
     question_count += 1
+    
     prompt = f"""The candidate just answered question {question_count - 1}.
  
     Look at their ACTUAL answer above. Do NOT assume or make up what they said.
