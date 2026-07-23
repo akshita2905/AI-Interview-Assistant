@@ -131,60 +131,150 @@ def speech_to_text(audio_path):
 @app.route("/submit-answer", methods=["POST"])
 def submit_answer():
     global question_count
-    audio_file = request.files["audio"]
-    temp_path = (
-    tempfile.NamedTemporaryFile(
-      delete=False,
-      suffix=".webm"
-     ).name
-    )
-    audio_file.save(temp_path)
-    answer = speech_to_text(temp_path)
-    os.unlink(temp_path)
-    if not answer:
-        answer = "Empty Text received"
-    print(f"[Answer {question_count}] {answer}")
-    config = {"configurable": {"thread_id": thread_id}}
-   
-    agent.invoke({"messages": [{"role": "user", "content": answer}]}, config=config)
 
-    if question_count >= 5:
-        completion_text = (
-            "Thank you. That completes our interview. "
-            "You can now view your feedback."
+    temp_path = None
+
+    try:
+        print("=== SUBMIT ANSWER STARTED ===")
+
+        if "audio" not in request.files:
+            print("ERROR: No audio file received")
+            return jsonify({
+                "success": False,
+                "error": "No audio file received"
+            }), 400
+
+        audio_file = request.files["audio"]
+
+        print("Audio filename:", audio_file.filename)
+        print("Audio content type:", audio_file.content_type)
+
+        temp_file = tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".webm"
         )
 
-    return (
-        stream_audio(completion_text),
-        {
-            "Content-Type": "text/plain",
-            "X-Question-Number": "5",
-            "X-Interview-Complete": "true"
-        }
-    )
-    question_count += 1
-    
-    prompt = f"""The candidate just answered question {question_count - 1}.
- 
-    Look at their ACTUAL answer above. Do NOT assume or make up what they said.
-    
-    Now ask question {question_count} of 5:
-    1. Briefly acknowledge what they ACTUALLY said (1 sentence) - quote their exact words if needed
-    2. Ask your next question that builds on their REAL response (1-2 sentences)
-    3. If they said "I don't know" or gave a wrong answer, acknowledge that and ask something simpler
-    4. Keep the TOTAL response under 3 sentences
-    
-    Be conversational but CONCISE. Only reference what they truly said."""
-    response = agent.invoke({"messages": [{"role": "user", "content": prompt}]}, config=config)
-    question = response["messages"][-1].content
-    print(f"\n[Question {question_count}] {question}")
-    return (stream_audio(question),
-        {
-        'Content-Type': 'text/plain',
-        'X-Question-Number': str(question_count)
-        }
-    )
+        temp_path = temp_file.name
+        temp_file.close()
 
+        audio_file.save(temp_path)
+
+        print("Audio saved:", temp_path)
+        print("Audio size:", os.path.getsize(temp_path))
+
+        # Speech to text
+        print("Sending audio to AssemblyAI...")
+
+        answer = speech_to_text(temp_path)
+
+        print("AssemblyAI transcription:", answer)
+
+        if not answer:
+            answer = "Empty Text received"
+
+        config = {
+            "configurable": {
+                "thread_id": thread_id
+            }
+        }
+
+        print("Sending answer to agent...")
+
+        agent.invoke(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": answer
+                    }
+                ]
+            },
+            config=config
+        )
+
+        print("Answer added to conversation")
+
+        # Interview finished
+        if question_count >= 5:
+
+            print("Interview completed")
+
+            completion_text = (
+                "Thank you. That completes our interview. "
+                "You can now view your feedback."
+            )
+
+            return (
+                stream_audio(completion_text),
+                {
+                    "Content-Type": "text/plain",
+                    "X-Question-Number": "5",
+                    "X-Interview-Complete": "true"
+                }
+            )
+
+        question_count += 1
+
+        prompt = f"""
+The candidate just answered question {question_count - 1}.
+
+Look at their ACTUAL answer above.
+
+Now ask question {question_count} of 5.
+
+Briefly acknowledge their actual answer and ask the next
+relevant question.
+
+Keep the total response under 3 sentences.
+"""
+
+        print("Generating question:", question_count)
+
+        response = agent.invoke(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            },
+            config=config
+        )
+
+        question = response["messages"][-1].content
+
+        print("Generated question:", question)
+
+        return (
+            stream_audio(question),
+            {
+                "Content-Type": "text/plain",
+                "X-Question-Number": str(question_count),
+                "X-Interview-Complete": "false"
+            }
+        )
+
+    except Exception as e:
+
+        print("========== SUBMIT ANSWER ERROR ==========")
+        print(type(e).__name__)
+        print(str(e))
+        print("=========================================")
+
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "type": type(e).__name__
+        }), 500
+
+    finally:
+
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.unlink(temp_path)
+            except Exception:
+                pass
 @app.route("/get-feedback", methods=["POST"])
 def get_feedback():
     """Generate detailed interview feedback"""
