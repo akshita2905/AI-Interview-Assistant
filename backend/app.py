@@ -149,10 +149,10 @@ def submit_answer():
     agent.invoke({"messages": [{"role": "user", "content": answer}]}, config=config)
 
     if question_count >= 5:
-    completion_text = (
-        "Thank you. That completes our interview. "
-        "You can now view your feedback."
-    )
+        completion_text = (
+            "Thank you. That completes our interview. "
+            "You can now view your feedback."
+        )
 
     return (
         stream_audio(completion_text),
